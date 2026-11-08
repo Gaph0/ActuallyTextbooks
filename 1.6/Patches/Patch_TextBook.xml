@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Swaps the vanilla textbook's skill-exp outcome doer for our subclass. Subclassing
+  rather than adding a sibling doer means the book keeps its native reading behaviour
+  exactly (random subjects, reading XP, the quality level cap, benefits text) and we
+  simply gain access to its printed subjects and quality for classroom use. There is
+  no double-dip: the vanilla doer instance is replaced, not duplicated.
+-->
+<Patch>
+
+  <Operation Class="PatchOperationReplace">
+    <xpath>Defs/ThingDef[defName="TextBook"]/comps/li[@Class="CompProperties_Book"]/doers/li[@Class="BookOutcomeProperties_GainSkillExp"]</xpath>
+    <value>
+      <li Class="ActuallyTextbooks.TextbookProperties" />
+    </value>
+  </Operation>
+
+</Patch>

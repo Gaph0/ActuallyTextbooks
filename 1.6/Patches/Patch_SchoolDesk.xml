@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SchoolDesk is defined by Biotech (Defs/ThingDefs_Buildings/Buildings_Furniture.xml)
+  and already carries a <comps> node, so this appends to an existing list. The comp is
+  purely informational (inspect-pane text) plus a dev-mode spawner, which is why no
+  Harmony patch is needed for the UI.
+
+  The bookcase gets nothing on purpose: its abstract parent ShelfBase already declares
+  a <comps> list, and a second <comps> node on BookcaseBase would replace the inherited
+  CompProperties_Styleable rather than join it.
+-->
+<Patch>
+
+  <Operation Class="PatchOperationAdd" MayRequire="Ludeon.RimWorld.Biotech">
+    <xpath>Defs/ThingDef[defName="SchoolDesk"]/comps</xpath>
+    <value>
+      <li Class="ActuallyTextbooks.CompProperties_TextbookRoom" />
+    </value>
+  </Operation>
+
+</Patch>

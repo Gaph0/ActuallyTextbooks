@@ -1,0 +1,25 @@
+<!--
+  Machine-specific paths, all overridable from:
+    1. LocalPaths.props next to this file (gitignored — copy from this example),
+    2. -p:PropertyName=value on the dotnet build command line,
+    3. an environment variable of the same name.
+
+  RimWorld16ManagedPath The 1.6 managed assemblies folder (RimWorldLinux_Data/
+                        Managed inside a 1.6 install, or a reference copy such as
+                        another project's refs16 folder). When unreachable the
+                        1.6 target is skipped unless -p:BuildRimWorld16=true.
+  RimWorld17Path        The 1.7 game install root (contains Assembly-CSharp.dll
+                        and UnityStubs.dll directly, unlike 1.6's
+                        RimWorldLinux_Data/Managed layout).
+  SteamModContentFolder Workshop content root, used only to find a locally
+                        installed Harmony (package id 2009463077). When Harmony is
+                        not installed the build falls back to the Lib.Harmony NuGet
+                        package, so a checkout builds either way; the runtime still
+                        needs the Harmony workshop mod present (see About.xml).
+-->
+<Project>
+  <PropertyGroup>
+    <RimWorld17Path>$(HOME)/.local/share/Steam/steamapps/common/RimWorld</RimWorld17Path>
+    <SteamModContentFolder>$(HOME)/.local/share/Steam/steamapps/workshop/content/294100</SteamModContentFolder>
+  </PropertyGroup>
+</Project>

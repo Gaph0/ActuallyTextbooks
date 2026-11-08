@@ -1,0 +1,10 @@
+<!-- Build outputs -->
+csharp/ActuallyTextbooks/bin/
+csharp/ActuallyTextbooks/obj/
+
+<!-- Machine-specific build paths (see LocalPaths.props.example) -->
+csharp/ActuallyTextbooks/LocalPaths.props
+
+<!-- The dlls are release artifacts and are committed; debug symbols are not. -->
+1.6/Assemblies/*.pdb
+1.7/Assemblies/*.pdb

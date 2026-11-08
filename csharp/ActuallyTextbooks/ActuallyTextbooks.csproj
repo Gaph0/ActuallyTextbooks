@@ -1,0 +1,117 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- LocalPaths.props holds this machine's Steam/game folders and is gitignored.
+       See LocalPaths.props.example; command line -p: or environment variables win. -->
+  <Import Project="LocalPaths.props" Condition="Exists('LocalPaths.props')" />
+
+  <PropertyGroup>
+    <RimWorld16Path Condition="'$(RimWorld16Path)' == ''">$(HOME)/.steam/debian-installation/steamapps/common/RimWorld</RimWorld16Path>
+    <RimWorld17Path Condition="'$(RimWorld17Path)' == ''">$(HOME)/.local/share/Steam/steamapps/common/RimWorld</RimWorld17Path>
+    <SteamModContentFolder Condition="'$(SteamModContentFolder)' == ''">$(HOME)/.local/share/Steam/steamapps/workshop/content/294100</SteamModContentFolder>
+    <!-- 1.6 keeps its managed assemblies in RimWorldLinux_Data/Managed; 1.7 ships
+         them in the install root. Machines without a 1.6 install point this at a
+         reference-assemblies copy through LocalPaths.props. -->
+    <RimWorld16ManagedPath Condition="'$(RimWorld16ManagedPath)' == ''">$(RimWorld16Path)/RimWorldLinux_Data/Managed</RimWorld16ManagedPath>
+    <!-- Harmony ships different assemblies per RimWorld version (1.6 = net472 with
+         Harmony 2.x, 1.7 = net10.0 with Harmony 3.0); prefer whichever the
+         installed workshop mod provides, else fall back to NuGet. -->
+    <HarmonyWorkshopPath>$(SteamModContentFolder)/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyWorkshopPath>
+    <UseNuGetHarmony Condition="!Exists('$(HarmonyWorkshopPath)')">true</UseNuGetHarmony>
+    <Harmony16Path>$(SteamModContentFolder)/2009463077/1.6/Assemblies/0Harmony.dll</Harmony16Path>
+    <Harmony16Path Condition="!Exists('$(Harmony16Path)')">$(RimWorld16ManagedPath)/0Harmony.dll</Harmony16Path>
+    <UseNuGetHarmony16 Condition="!Exists('$(Harmony16Path)')">true</UseNuGetHarmony16>
+    <!-- Mod folder tree this project publishes into (LoadFolders.xml points each
+         game version at its own folder). -->
+    <ModTreePath>$(MSBuildProjectDirectory)/../..</ModTreePath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 1.6 runs on .NET Framework 4.8, 1.7 on the .NET 10 "Waylith" runtime. The
+         1.6 target is added when its reference assemblies are reachable (or when
+         BuildRimWorld16 is set), so a machine with only 1.7 builds without extra
+         setup. The moved types (SkillRecord, BookOutcomeDoer*, ...) live in the
+         RimWorld namespace in both versions, so one source set serves both. -->
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(BuildRimWorld16)' == 'true' or Exists('$(RimWorld16ManagedPath)/Assembly-CSharp.dll')">net48;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>ActuallyTextbooks</AssemblyName>
+    <RootNamespace>ActuallyTextbooks</RootNamespace>
+    <DebugType>none</DebugType>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <!-- The dll ships as a release artifact, so it cannot embed the build commit. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS0108;CS1591</NoWarn>
+    <!-- Folder inside the mod tree that LoadFolders.xml points this version at. -->
+    <ModVersionFolder Condition="'$(TargetFramework)' == 'net48'">1.6</ModVersionFolder>
+    <ModVersionFolder Condition="'$(TargetFramework)' == 'net10.0'">1.7</ModVersionFolder>
+  </PropertyGroup>
+
+  <!-- Private=false everywhere: only our own dll may land in the mod's Assemblies
+       folder, since RimWorld loads every dll it finds there. -->
+
+  <!-- RimWorld 1.6: .NET Framework 4.8, UnityEngine split into per-module
+       assemblies. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RimWorld16ManagedPath)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(RimWorld16ManagedPath)/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(RimWorld16ManagedPath)/UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(RimWorld16ManagedPath)/UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="netstandard">
+      <HintPath>$(RimWorld16ManagedPath)/netstandard.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony" Condition="'$(UseNuGetHarmony16)' != 'true'">
+      <HintPath>$(Harmony16Path)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Targeting .NET Framework off Windows needs the reference assemblies. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48' and '$(UseNuGetHarmony16)' == 'true'">
+    <PackageReference Include="Lib.Harmony" Version="2.4.3" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- RimWorld 1.7: .NET 10, UnityEngine merged into UnityStubs. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RimWorld17Path)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityStubs">
+      <HintPath>$(RimWorld17Path)/UnityStubs.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony" Condition="'$(UseNuGetHarmony)' != 'true'">
+      <HintPath>$(HarmonyWorkshopPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(UseNuGetHarmony)' == 'true'">
+    <PackageReference Include="Lib.Harmony" Version="2.4.3" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Publish each built dll into its version folder so the mod tree is
+       immediately usable by RimWorld / symlinkable into modsConfig. -->
+  <Target Name="CopyDllToModTree" AfterTargets="Build">
+    <MakeDir Directories="$(ModTreePath)/$(ModVersionFolder)/Assemblies" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModTreePath)/$(ModVersionFolder)/Assemblies" />
+  </Target>
+
+</Project>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+
+  <!-- Settings -->
+  <ActTx_Settings_Enabled>Textbooks improve classroom lessons</ActTx_Settings_Enabled>
+  <ActTx_Settings_EnabledTooltip>Master switch. When off, textbooks do nothing and lessons behave exactly as in vanilla.</ActTx_Settings_EnabledTooltip>
+  <ActTx_Settings_Matching>Only count textbooks on the subject being taught</ActTx_Settings_Matching>
+  <ActTx_Settings_MatchingTooltip>When on (default), a textbook only helps lessons in the skills printed on it, so a classroom needs a library covering what the teacher teaches. When off, any textbook in the room helps every lesson, and quality alone decides how much.</ActTx_Settings_MatchingTooltip>
+  <ActTx_Settings_LooseBooks>Count textbooks lying on the classroom floor</ActTx_Settings_LooseBooks>
+  <ActTx_Settings_LooseBooksTooltip>When on, unforbidden textbooks in the room count even before anyone files them in a bookcase. Books in a bookcase always count and never deteriorate.</ActTx_Settings_LooseBooksTooltip>
+  <ActTx_Settings_MaxBooks>Books counted per classroom: {0}</ActTx_Settings_MaxBooks>
+  <ActTx_Settings_Diminish>Weight of each further book: {0}</ActTx_Settings_Diminish>
+  <ActTx_Settings_MaxRate>Maximum lesson XP bonus: {0}</ActTx_Settings_MaxRate>
+  <ActTx_Settings_DebugLog>Log lesson XP and saturation to the console</ActTx_Settings_DebugLog>
+  <ActTx_Settings_DebugLogTooltip>Writes one line per student per skill once a second during lessons, showing the effective learn rate, the textbook bonus applied and progress against today's XP budget. Useful for checking balance, noisy otherwise.</ActTx_Settings_DebugLogTooltip>
+  <ActTx_Settings_ShowTable>Show effective quality table</ActTx_Settings_ShowTable>
+  <ActTx_Settings_TableTitle>Textbook value by quality (lesson XP rate / extra XP per day):</ActTx_Settings_TableTitle>
+  <ActTx_Settings_TableBest>A library of {2} Legendary books: +{0} lesson XP, {1} XP per day per skill.</ActTx_Settings_TableBest>
+  <ActTx_Settings_Reset>Reset to defaults</ActTx_Settings_Reset>
+  <ActTx_Settings_CacheNote>Classroom contents are re-read every {0} ticks, so moving a book takes effect within a few seconds.</ActTx_Settings_CacheNote>
+
+  <!-- Book info card -->
+  <ActTx_Textbook_ClassroomBenefit>As a classroom textbook: +{RATE} lesson XP, +{BUDGET} XP per day for students taught its subjects.</ActTx_Textbook_ClassroomBenefit>
+  <ActTx_Textbook_NoValue>As a classroom textbook: too poorly made to help a lesson.</ActTx_Textbook_NoValue>
+
+  <!-- Desk inspect pane -->
+  <ActTx_Inspect_Title>Classroom textbooks: {COUNT}</ActTx_Inspect_Title>
+  <ActTx_Inspect_NoTextbooks>No textbooks in this classroom yet.</ActTx_Inspect_NoTextbooks>
+  <ActTx_Inspect_NoSubjectBooks>No textbook in this classroom covers {0}.</ActTx_Inspect_NoSubjectBooks>
+  <ActTx_Inspect_Budget>daily XP budget {0}</ActTx_Inspect_Budget>
+
+  <!-- Dev tools -->
+  <ActTx_Dev_SpawnTextbook>DEV: Spawn textbook…</ActTx_Dev_SpawnTextbook>
+  <ActTx_Dev_SpawnTextbookDesc>Drops a freshly generated textbook of a chosen quality next to this building, for testing classroom libraries.</ActTx_Dev_SpawnTextbookDesc>
+  <ActTx_Dev_NotInRoom>That cell is not inside a proper room, so no lesson can happen there and the textbook will not be counted.</ActTx_Dev_NotInRoom>
+
+</LanguageData>
