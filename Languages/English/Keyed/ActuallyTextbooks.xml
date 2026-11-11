@@ -23,12 +23,15 @@
   <ActTx_Textbook_ClassroomBenefit>As a classroom textbook: +{RATE} lesson XP, +{BUDGET} XP per day for students taught its subjects.</ActTx_Textbook_ClassroomBenefit>
   <ActTx_Textbook_NoValue>As a classroom textbook: too poorly made to help a lesson.</ActTx_Textbook_NoValue>
 
-  <!-- Desk inspect pane -->
+  <!-- Class-window readout (Progression: Education) -->
   <ActTx_Inspect_Title>Classroom textbooks: {COUNT}</ActTx_Inspect_Title>
   <ActTx_Inspect_NoTextbooks>No textbooks in this classroom yet.</ActTx_Inspect_NoTextbooks>
   <ActTx_Inspect_NoSubjectBooks>No textbook in this classroom covers {0}.</ActTx_Inspect_NoSubjectBooks>
   <ActTx_Inspect_WorthlessBooks>The textbooks covering {0} are too poorly made to help a lesson.</ActTx_Inspect_WorthlessBooks>
   <ActTx_Inspect_Budget>daily XP budget {0}</ActTx_Inspect_Budget>
+  <ActTx_Inspect_TrainingRate>{0} training rate {1}</ActTx_Inspect_TrainingRate>
+  <ActTx_Inspect_TrainingRateTotal>{0} training rate</ActTx_Inspect_TrainingRateTotal>
+  <ActTx_Inspect_TrainingWorthless>The {0} textbooks in this classroom are too poorly made to speed up training.</ActTx_Inspect_TrainingWorthless>
 
   <!-- Dev tools -->
   <ActTx_Dev_SpawnTextbook>DEV: Spawn textbook…</ActTx_Dev_SpawnTextbook>

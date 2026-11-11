@@ -22,6 +22,8 @@ namespace ActuallyTextbooks
             // CreateModClasses runs any Mod constructor, verified in 1.7, so the
             // optional bridge resolves the other mod's types right here.
             ProgressionEducationCompat.ApplyDialogPatches(harmony);
+            // The proficiency training-rate boost rides on the same bridge.
+            ProgressionEducationCompat.ApplyTrainingPatches(harmony);
             Log.Message("[Actually Textbooks] Harmony patches applied (" + HarmonyId + ").");
         }
 
@@ -39,7 +41,7 @@ namespace ActuallyTextbooks
         public override void WriteSettings()
         {
             base.WriteSettings();
-            // Curves/aggregation only take effect on the next cache rebuild, so drop
+            // Aggregation only takes effect on the next cache rebuild, so drop
             // the cached rooms rather than waiting up to 250 ticks per room.
             RoomTextbookCache.InvalidateAll();
         }
