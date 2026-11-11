@@ -76,6 +76,10 @@ namespace ActuallyTextbooks
             // SaturatedLearningFactor (0.2) when xpSinceMidnight passed 4000, so
             // undoing exactly that factor *is* what extends the cap. The result stays
             // bit-identical to vanilla whenever no bonus applies.
+            // Assumption: vanilla keeps applying that same constant inline. A mod that
+            // transpiles the saturation factor away would make this divide overshoot,
+            // so the divide is scoped to the crossed threshold below and never applied
+            // unconditionally.
             if (budgetBonus > 0)
             {
                 float spent = __instance.xpSinceMidnight;

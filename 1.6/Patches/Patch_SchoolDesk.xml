@@ -2,8 +2,8 @@
 <!--
   SchoolDesk is defined by Biotech (Defs/ThingDefs_Buildings/Buildings_Furniture.xml)
   and already carries a <comps> node, so this appends to an existing list. The comp is
-  purely informational (inspect-pane text) plus a dev-mode spawner, which is why no
-  Harmony patch is needed for the UI.
+  a dev-mode spawner only: the classroom readout lives in the class windows of
+  Progression: Education, which is why no Harmony patch is needed for the UI.
 
   The bookcase gets nothing on purpose: its abstract parent ShelfBase already declares
   a <comps> list, and a second <comps> node on BookcaseBase would replace the inherited

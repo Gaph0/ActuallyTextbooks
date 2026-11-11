@@ -35,7 +35,7 @@ namespace ActuallyTextbooks
                 for (int i = 0; i < 7; i++)
                 {
                     QualityCategory quality = (QualityCategory)i;
-                    options.Add(new FloatMenuOption(quality.ToString(), () => SpawnTextbook(quality)));
+                    options.Add(new FloatMenuOption(quality.GetLabel().CapitalizeFirst(), () => SpawnTextbook(quality)));
                 }
                 Find.WindowStack.Add(new FloatMenu(options));
             };

@@ -18,8 +18,15 @@ namespace ActuallyTextbooks
         /// taught skill, and the bonus line is that subject's. A room with no
         /// covering book reports just that fact. With matching off every book
         /// helps every lesson, so the room total is reported instead.
+        /// <para>
+        /// <paramref name="trainingLabel"/> marks a Progression: Education
+        /// proficiency class: the bonus lines then report the training-rate
+        /// multiplier under the tier's own label ("Firearm training rate +30%")
+        /// instead of the lesson XP figures, since tier progress has no daily
+        /// budget. Null — the taught-subject phrasing — for skill classes.
+        /// </para>
         /// </summary>
-        public static string For(Room room, Map map, SkillDef subject)
+        public static string For(Room room, Map map, SkillDef subject, string trainingLabel = null)
         {
             EducationSettings settings = EducationMod.Settings;
             if (settings == null || !settings.Enabled || !ModsConfig.BiotechActive || room == null || map == null)
@@ -49,18 +56,22 @@ namespace ActuallyTextbooks
                 QualityCategory best = books.BestQualityPerSubject[subject];
                 if (best != QualityCategory.Awful)
                 {
-                    text.Append(" (" + best.ToString() + ")");
+                    text.Append(" (" + best.GetLabel().CapitalizeFirst() + ")");
                 }
                 text.AppendLine();
                 if (books.PerSubject != null
                     && books.PerSubject.TryGetValue(subject, out RoomTextbooks.LessonBonus lessonBonus))
                 {
-                    text.AppendLine(SubjectLine(subject, lessonBonus));
+                    text.AppendLine(trainingLabel == null
+                        ? SubjectLine(subject, lessonBonus)
+                        : TrainingLine(trainingLabel, lessonBonus.Rate));
                 }
                 else
                 {
                     // Counted but worthless: awful copies still show in the count.
-                    text.AppendLine("ActTx_Inspect_WorthlessBooks".Translate(subject.LabelCap));
+                    text.AppendLine(trainingLabel == null
+                        ? "ActTx_Inspect_WorthlessBooks".Translate(subject.LabelCap)
+                        : "ActTx_Inspect_TrainingWorthless".Translate(subject.LabelCap));
                 }
                 return text.ToString().TrimEndNewlines();
             }
@@ -69,12 +80,27 @@ namespace ActuallyTextbooks
             total.Append("ActTx_Inspect_Title".Translate(books.CountedBooks.Named("COUNT")));
             if (books.BestQuality != QualityCategory.Awful)
             {
-                total.Append(" (" + books.BestQuality.ToString() + ")");
+                total.Append(" (" + books.BestQuality.GetLabel().CapitalizeFirst() + ")");
             }
-            total.Append(": +" + books.Rate.ToStringPercent("0") + ", ");
-            total.Append("ActTx_Inspect_Budget".Translate(
-                (SkillRecord.MaxFullRateXpPerDay + books.Budget).ToString()));
+            if (trainingLabel == null)
+            {
+                total.Append(": +" + books.Rate.ToStringPercent("0") + ", ");
+                total.Append("ActTx_Inspect_Budget".Translate(
+                    (SkillRecord.MaxFullRateXpPerDay + books.Budget).ToString()));
+            }
+            else
+            {
+                total.Append(": " + "ActTx_Inspect_TrainingRateTotal".Translate(
+                    "+" + books.Rate.ToStringPercent("0")));
+            }
             return total.ToString();
+        }
+
+        /// <summary>The bonus line for a proficiency class: the tier's own label,
+        /// the training rate the classroom's books grant, no XP budget.</summary>
+        private static string TrainingLine(string trainingLabel, float rate)
+        {
+            return "  " + "ActTx_Inspect_TrainingRate".Translate(trainingLabel, "+" + rate.ToStringPercent("0"));
         }
 
         private static string SubjectLine(SkillDef skill, RoomTextbooks.LessonBonus bonus)

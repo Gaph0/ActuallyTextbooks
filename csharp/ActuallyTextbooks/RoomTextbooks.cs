@@ -46,8 +46,6 @@ namespace ActuallyTextbooks
 
         public bool IsEmpty => CountedBooks <= 0;
 
-        public int SubjectCount => PerSubject == null ? 0 : PerSubject.Count;
-
         public void Reset()
         {
             Rate = 0f;

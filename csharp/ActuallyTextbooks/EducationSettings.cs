@@ -35,6 +35,15 @@ namespace ActuallyTextbooks
         /// <summary>Ceiling on the summed lesson XP rate bonus (fraction; 0.6 = +60%).</summary>
         public float MaxRateBonus = 0.6f;
 
+        /// <summary>
+        /// Upper bound shared by the <see cref="MaxRateBonus"/> slider and its clamp, so
+        /// the range the UI offers and the value the scanner applies cannot disagree.
+        /// </summary>
+        public const float MaxRateBonusCeiling = 3f;
+
+        /// <summary>Upper bound shared by the <see cref="MaxBooksCounted"/> slider and its clamp.</summary>
+        public const int MaxBooksCeiling = 10;
+
         /// <summary>Multiplicative weight of each successive counted book (diminishing returns).</summary>
         public float BookDiminish = 0.5f;
 
@@ -83,6 +92,14 @@ namespace ActuallyTextbooks
             Scribe_Values.Look(ref MaxRateBonus, "maxRateBonus", 0.6f);
             Scribe_Values.Look(ref BookDiminish, "bookDiminish", 0.5f);
             Scribe_Values.Look(ref DebugLogging, "debugLogging", false);
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                // A hand-edited or older settings file must not carry a value outside
+                // the range the sliders offer: the scanner applies these directly.
+                MaxRateBonus = Mathf.Clamp(MaxRateBonus, 0f, MaxRateBonusCeiling);
+                MaxBooksCounted = Mathf.Clamp(MaxBooksCounted, 1, MaxBooksCeiling);
+                BookDiminish = Mathf.Clamp(BookDiminish, 0f, 1f);
+            }
             base.ExposeData();
         }
 
@@ -103,13 +120,13 @@ namespace ActuallyTextbooks
             listing.GapLine();
 
             int maxBooks = (int)listing.SliderLabeled("ActTx_Settings_MaxBooks".Translate(MaxBooksCounted),
-                MaxBooksCounted, 1f, 10f);
-            MaxBooksCounted = Mathf.Max(1, maxBooks);
+                MaxBooksCounted, 1f, MaxBooksCeiling);
+            MaxBooksCounted = Mathf.Clamp(maxBooks, 1, MaxBooksCeiling);
             BookDiminish = listing.SliderLabeled("ActTx_Settings_Diminish".Translate(BookDiminish.ToStringPercent("0")),
                 BookDiminish, 0f, 1f);
             MaxRateBonus = Mathf.Clamp(listing.SliderLabeled(
-                    "ActTx_Settings_MaxRate".Translate(MaxRateBonus.ToStringPercent("0")), MaxRateBonus, 0f, 3f),
-                0f, 5f);
+                    "ActTx_Settings_MaxRate".Translate(MaxRateBonus.ToStringPercent("0")), MaxRateBonus, 0f, MaxRateBonusCeiling),
+                0f, MaxRateBonusCeiling);
             listing.GapLine();
 
             listing.CheckboxLabeled("ActTx_Settings_DebugLog".Translate(), ref DebugLogging,
@@ -142,15 +159,18 @@ namespace ActuallyTextbooks
             for (int i = 0; i < RateBonusByQuality.Length; i++)
             {
                 QualityCategory quality = (QualityCategory)i;
-                text.AppendLine("  " + quality.ToString().PadRight(12)
+                text.AppendLine("  " + quality.GetLabel().CapitalizeFirst().PadRight(12)
                     + RateBonusByQuality[i].ToStringPercent("0").PadRight(8)
                     + "+" + DailyBudgetBonusByQuality[i]);
             }
             text.AppendLine();
             float rate = 0f;
             int budget = 0;
-            int books = Mathf.Max(1, MaxBooksCounted);
-            for (int i = 0; i < books && i < RateBonusByQuality.Length; i++)
+            int books = Mathf.Clamp(MaxBooksCounted, 1, MaxBooksCeiling);
+            // Every counted book contributes the top tier's value at its own weight, so
+            // there is no second loop bound: capping this at the number of quality tiers
+            // would under-sum the total whenever MaxBooksCounted exceeds 7.
+            for (int i = 0; i < books; i++)
             {
                 rate += RateBonusByQuality[RateBonusByQuality.Length - 1] * WeightForIndex(i);
                 budget += Mathf.RoundToInt(DailyBudgetBonusByQuality[DailyBudgetBonusByQuality.Length - 1] * WeightForIndex(i));

@@ -14,9 +14,12 @@ namespace ActuallyTextbooks
     /// pane) asks for it.
     /// </para>
     /// <para>
-    /// Nothing here is persisted. <see cref="FinalizeInit"/> starts from an empty
-    /// dictionary, so save files are identical with and without the mod installed and
-    /// uninstalling leaves no residue.
+    /// The cached values are never written: this class overrides no <c>ExposeData</c>.
+    /// A map does scribe its component list with <c>LookMode.Deep</c>, which stores the
+    /// runtime type name, so saves carry one field-less <c>RoomTextbookCache</c> node —
+    /// the standard caveat for any MapComponent mod. <see cref="FinalizeInit"/> starts
+    /// from an empty dictionary, and with the mod removed RimWorld resolves that node to
+    /// nothing and logs a missing-type warning rather than failing to load the save.
     /// </para>
     /// </summary>
     public sealed class RoomTextbookCache : MapComponent
@@ -46,6 +49,9 @@ namespace ActuallyTextbooks
         {
             base.MapRemoved();
             entries.Clear();
+            // Drop the debug throttle table too, so entries for pawns of a discarded
+            // map are not held for the rest of the session.
+            LessonDebugLogger.Clear();
         }
 
         /// <summary>
