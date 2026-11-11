@@ -84,10 +84,23 @@ namespace ActuallyTextbooks
             entries.Clear();
         }
 
-        /// <summary>Invalidate every loaded map (called when settings change).</summary>
+        /// <summary>
+        /// Invalidate every loaded map (called when settings change).
+        /// <para>
+        /// <c>Find.Maps</c> is null while no game is loaded (it is
+        /// <c>Current.Game?.Maps</c>), e.g. when the mod settings dialog closes at
+        /// the main menu. Settings are written from the dialog's PreClose, and an
+        /// exception there prevents the window from closing at all, so bail out
+        /// quietly when there is nothing to invalidate.
+        /// </para>
+        /// </summary>
         public static void InvalidateAll()
         {
             List<Map> maps = Find.Maps;
+            if (maps == null)
+            {
+                return;
+            }
             for (int i = 0; i < maps.Count; i++)
             {
                 CacheFor(maps[i])?.Invalidate();

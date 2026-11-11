@@ -8,3 +8,7 @@ csharp/ActuallyTextbooks/LocalPaths.props
 <!-- The dlls are release artifacts and are committed; debug symbols are not. -->
 1.6/Assemblies/*.pdb
 1.7/Assemblies/*.pdb
+
+<!-- Local debug/upload artifacts, not part of the mod. -->
+output_log.txt
+About/PublishedFileId.txt

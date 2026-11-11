@@ -7,20 +7,11 @@
     <li>1.6</li>
     <li>1.7</li>
   </supportedVersions>
-  <description>Textbooks in the classroom make lessons worth more.
+  <description>Textbooks in the classroom make lessons teach more. Higher quality textbooks that are relevant to the lesson make the students learn more at a faster rate and increase the experience the pawn can can daily before capping.
+Only a certain number of books can be used before they cap out. Books that are not relevant to the lesson contribute nothing. There are settings to adjust if you want.
 
-Shelve textbooks in the room that holds your school desks and every student taught there learns faster:
-
-  - Each textbook raises lesson XP and lifts the daily XP budget for the skill it covers, so children stop hitting the 4000 XP/day saturation wall as early.
-  - Quality is what matters. Awful textbooks are shelf filler; Legendary ones carry a whole classroom.
-  - A textbook covers the subjects printed on it (1-2, chosen when the book was made). Collect a library that matches what your teacher actually teaches, or turn subject matching off in the settings to let any textbook boost any lesson.
-  - Only the best few books per room count, with diminishing returns, so upgrading the shelf beats hoarding it.
-
-No new items are added: the vanilla textbook is the textbook, so books from traders, quests and raids work right away. Books filed in a bookcase never deteriorate and always count; books dropped on the classroom floor count while unforbidden.
-
-Vanilla reading is untouched: children can still read these same books for recreation and skill, up to the quality level cap the book itself carries, which is a second route into the same skills.
-
-Requires Biotech for school desks and lessons. Everything is optional and configurable in the mod settings.</description>
+Requires Biotech and Progression: Education.
+Licensed under Unlicense, feel free to steal this IDC.</description>
   <modDependencies>
     <li>
       <packageId>brrainz.harmony</packageId>

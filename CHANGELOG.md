@@ -2,6 +2,17 @@
 
 Newest entry first. Dates use ISO format.
 
+## Unreleased
+
+### Changed
+
+- The right-hand column of the create/edit class windows of "Progression: Education" now scrolls when its requirements and study-time rows outgrow the window, so rows no longer spill into the button row. The classroom textbook readout is appended as the column's last row, directly under the class hours row, and stays reachable however tall the column grows.
+- With subject matching on, the classroom readout's book count and quality now cover only the counted textbooks printed with the taught skill, so unrelated books on the shelf no longer inflate the number the class sees. When nothing on the shelf covers the taught skill, only the "no textbook covers it" line shows; subjects the class does not learn are never listed.
+
+### Fixed
+
+- The mod settings window could no longer be closed from the main menu: closing it wrote settings, which invalidated the room caches via `Find.Maps`, which is null before a game is loaded, so the close threw and the window stayed open. The cache invalidation now no-ops when no game is loaded.
+
 ## 1.0.0 — 2026-11-08
 
 First release. Supports RimWorld 1.6 and 1.7. Requires Biotech and Harmony.

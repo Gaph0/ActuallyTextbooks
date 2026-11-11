@@ -168,6 +168,30 @@ namespace ActuallyTextbooks
 
                 float rate = EducationSettings.RateBonusFor(quality) * weight;
                 int budget = Mathf.RoundToInt(EducationSettings.DailyBudgetBonusFor(quality) * weight);
+
+                if (matching && candidate.Subjects != null && candidate.Subjects.Count > 0)
+                {
+                    // Per-subject mirror of CountedBooks/BestQuality for every
+                    // counted book, worthless copies included, so the class
+                    // readout can report how many of the counted textbooks
+                    // actually cover the taught subject.
+                    if (result.BooksPerSubject == null)
+                    {
+                        result.BooksPerSubject = new Dictionary<SkillDef, int>();
+                        result.BestQualityPerSubject = new Dictionary<SkillDef, QualityCategory>();
+                    }
+                    for (int s = 0; s < candidate.Subjects.Count; s++)
+                    {
+                        SkillDef printed = candidate.Subjects[s];
+                        result.BooksPerSubject.TryGetValue(printed, out int held);
+                        result.BooksPerSubject[printed] = held + 1;
+                        if (!result.BestQualityPerSubject.TryGetValue(printed, out QualityCategory best) || quality > best)
+                        {
+                            result.BestQualityPerSubject[printed] = quality;
+                        }
+                    }
+                }
+
                 if (rate <= 0f && budget <= 0)
                 {
                     continue; // Awful copies count for the UI but are worth nothing.

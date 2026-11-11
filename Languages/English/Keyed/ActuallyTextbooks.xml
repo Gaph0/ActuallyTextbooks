@@ -27,6 +27,7 @@
   <ActTx_Inspect_Title>Classroom textbooks: {COUNT}</ActTx_Inspect_Title>
   <ActTx_Inspect_NoTextbooks>No textbooks in this classroom yet.</ActTx_Inspect_NoTextbooks>
   <ActTx_Inspect_NoSubjectBooks>No textbook in this classroom covers {0}.</ActTx_Inspect_NoSubjectBooks>
+  <ActTx_Inspect_WorthlessBooks>The textbooks covering {0} are too poorly made to help a lesson.</ActTx_Inspect_WorthlessBooks>
   <ActTx_Inspect_Budget>daily XP budget {0}</ActTx_Inspect_Budget>
 
   <!-- Dev tools -->

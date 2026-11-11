@@ -32,6 +32,18 @@ namespace ActuallyTextbooks
         /// <summary>skill → bonus; matching on only.</summary>
         public Dictionary<SkillDef, LessonBonus> PerSubject;
 
+        /// <summary>
+        /// skill → how many of the counted books carry that skill; matching on
+        /// only. Mirrors <see cref="CountedBooks"/> per subject, worthless copies
+        /// included, so the class readout can say how many of the room's counted
+        /// textbooks actually serve the taught subject.
+        /// </summary>
+        public Dictionary<SkillDef, int> BooksPerSubject;
+
+        /// <summary>skill → best quality among the counted books carrying that
+        /// skill; matching on only.</summary>
+        public Dictionary<SkillDef, QualityCategory> BestQualityPerSubject;
+
         public bool IsEmpty => CountedBooks <= 0;
 
         public int SubjectCount => PerSubject == null ? 0 : PerSubject.Count;
@@ -43,6 +55,8 @@ namespace ActuallyTextbooks
             BestQuality = QualityCategory.Awful;
             CountedBooks = 0;
             PerSubject?.Clear();
+            BooksPerSubject?.Clear();
+            BestQualityPerSubject?.Clear();
         }
 
         public readonly struct LessonBonus

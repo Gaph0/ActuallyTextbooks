@@ -13,10 +13,11 @@ namespace ActuallyTextbooks
     {
         /// <summary>
         /// The readout, or null while the mod is off. With subject matching on,
-        /// only <paramref name="subject"/> is reported, since every other book on
-        /// the shelf is noise next to the class it serves; a room with no
-        /// covering book then reports just that fact. With matching off every
-        /// book helps every lesson, so the room total is reported instead.
+        /// only what serves <paramref name="subject"/> is reported: the count and
+        /// quality in the title cover just the counted textbooks printed with the
+        /// taught skill, and the bonus line is that subject's. A room with no
+        /// covering book reports just that fact. With matching off every book
+        /// helps every lesson, so the room total is reported instead.
         /// </summary>
         public static string For(Room room, Map map, SkillDef subject)
         {
@@ -31,32 +32,57 @@ namespace ActuallyTextbooks
                 return "ActTx_Inspect_NoTextbooks".Translate();
             }
 
-            StringBuilder text = new StringBuilder();
-            text.Append("ActTx_Inspect_Title".Translate(books.CountedBooks.Named("COUNT")));
-            if (books.BestQuality != QualityCategory.Awful)
-            {
-                text.Append(" (" + books.BestQuality.ToString() + ")");
-            }
-
+            // With matching on the readout speaks for this class alone: the books
+            // that do not print the taught skill are not its textbooks, however
+            // large the room's library is, so neither the count nor the quality
+            // mentions them. A shelf with nothing for this class reports just
+            // that, without a misleading count in front of it.
             if (settings.RequireMatchingSubject)
             {
-                if (books.PerSubject == null
-                    || !books.PerSubject.TryGetValue(subject, out RoomTextbooks.LessonBonus lessonBonus))
+                if (books.BooksPerSubject == null
+                    || !books.BooksPerSubject.TryGetValue(subject, out int subjectBooks))
                 {
                     return "ActTx_Inspect_NoSubjectBooks".Translate(subject.LabelCap);
                 }
+                StringBuilder text = new StringBuilder();
+                text.Append("ActTx_Inspect_Title".Translate(subjectBooks.Named("COUNT")));
+                QualityCategory best = books.BestQualityPerSubject[subject];
+                if (best != QualityCategory.Awful)
+                {
+                    text.Append(" (" + best.ToString() + ")");
+                }
                 text.AppendLine();
-                text.AppendLine("  " + subject.LabelCap
-                    + ": +" + lessonBonus.Rate.ToStringPercent("0")
-                    + ", " + "ActTx_Inspect_Budget".Translate(
-                        (SkillRecord.MaxFullRateXpPerDay + lessonBonus.Budget).ToString()));
+                if (books.PerSubject != null
+                    && books.PerSubject.TryGetValue(subject, out RoomTextbooks.LessonBonus lessonBonus))
+                {
+                    text.AppendLine(SubjectLine(subject, lessonBonus));
+                }
+                else
+                {
+                    // Counted but worthless: awful copies still show in the count.
+                    text.AppendLine("ActTx_Inspect_WorthlessBooks".Translate(subject.LabelCap));
+                }
                 return text.ToString().TrimEndNewlines();
             }
 
-            text.Append(": +" + books.Rate.ToStringPercent("0") + ", ");
-            text.Append("ActTx_Inspect_Budget".Translate(
+            StringBuilder total = new StringBuilder();
+            total.Append("ActTx_Inspect_Title".Translate(books.CountedBooks.Named("COUNT")));
+            if (books.BestQuality != QualityCategory.Awful)
+            {
+                total.Append(" (" + books.BestQuality.ToString() + ")");
+            }
+            total.Append(": +" + books.Rate.ToStringPercent("0") + ", ");
+            total.Append("ActTx_Inspect_Budget".Translate(
                 (SkillRecord.MaxFullRateXpPerDay + books.Budget).ToString()));
-            return text.ToString();
+            return total.ToString();
+        }
+
+        private static string SubjectLine(SkillDef skill, RoomTextbooks.LessonBonus bonus)
+        {
+            return "  " + skill.LabelCap
+                + ": +" + bonus.Rate.ToStringPercent("0")
+                + ", " + "ActTx_Inspect_Budget".Translate(
+                    (SkillRecord.MaxFullRateXpPerDay + bonus.Budget).ToString());
         }
     }
 }
