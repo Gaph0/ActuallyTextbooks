@@ -56,7 +56,7 @@ namespace ActuallyTextbooks
         /// Book-card line describing what the copy is worth to a classroom, so the
         /// numbers travel with the item and no extra window is needed. This is the
         /// per-copy potential: what a desk actually gets depends on the whole library
-        /// (see <see cref="Comp_SchoolDeskTextbooks"/>).
+        /// (see <see cref="TextbookRoomScanner"/>).
         /// </summary>
         public override string GetBenefitsString(Pawn reader = null)
         {
@@ -76,7 +76,10 @@ namespace ActuallyTextbooks
         private string ClassroomBenefitsString()
         {
             EducationSettings settings = EducationMod.Settings;
-            if (settings == null || !settings.Enabled)
+            // Same gate as the lesson patch and the class-window readout: without
+            // Biotech there are no school desks and no lessons, so promising lesson XP
+            // on the card would describe a benefit that cannot happen.
+            if (settings == null || !settings.Enabled || !ModsConfig.BiotechActive)
             {
                 return null;
             }

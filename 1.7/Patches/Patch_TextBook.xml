@@ -5,14 +5,20 @@
   exactly (random subjects, reading XP, the quality level cap, benefits text) and we
   simply gain access to its printed subjects and quality for classroom use. There is
   no double-dip: the vanilla doer instance is replaced, not duplicated.
+
+  The operation is conditional: if another mod already replaced that doer node, the
+  patch no-ops silently instead of logging a red patch failure at load.
 -->
 <Patch>
 
-  <Operation Class="PatchOperationReplace">
+  <Operation Class="PatchOperationConditional">
     <xpath>Defs/ThingDef[defName="TextBook"]/comps/li[@Class="CompProperties_Book"]/doers/li[@Class="BookOutcomeProperties_GainSkillExp"]</xpath>
-    <value>
-      <li Class="ActuallyTextbooks.TextbookProperties" />
-    </value>
+    <match Class="PatchOperationReplace">
+      <xpath>Defs/ThingDef[defName="TextBook"]/comps/li[@Class="CompProperties_Book"]/doers/li[@Class="BookOutcomeProperties_GainSkillExp"]</xpath>
+      <value>
+        <li Class="ActuallyTextbooks.TextbookProperties" />
+      </value>
+    </match>
   </Operation>
 
 </Patch>

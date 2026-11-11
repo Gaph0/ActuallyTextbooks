@@ -1,4 +1,4 @@
-using System.Collections;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 
@@ -18,8 +18,13 @@ namespace ActuallyTextbooks
     {
         private const int LogIntervalTicks = 60;
 
-        /// <summary>Keys are <c>thingIDNumber * 64 + skillDef.shortHash</c>; values are the last tick logged.</summary>
-        private static readonly Hashtable LastLogged = new Hashtable();
+        /// <summary>
+        /// Keys are <c>thingIDNumber * 1024 + skillDef.def.index</c>; values are the last
+        /// tick logged. Both parts are stable for a running session, so one entry per
+        /// learner-skill pair is bounded; only past ~2.1M thing ids could the product
+        /// overflow and collide, which for a log throttle is harmless.
+        /// </summary>
+        private static readonly Dictionary<int, int> LastLogged = new Dictionary<int, int>();
 
         /// <summary>
         /// Reports the effective learn rate for one XP gain during a lesson, with the
@@ -32,11 +37,10 @@ namespace ActuallyTextbooks
                 return;
             }
             // SkillDef index is stable for the session, so this key needs no allocation
-            // beyond boxing the int, and one entry per learner-skill pair is bounded.
+            // at all, and one entry per learner-skill pair is bounded.
             int key = pawn.thingIDNumber * 1024 + record.def.index;
             int now = Find.TickManager.TicksGame;
-            object previous = LastLogged[key];
-            if (previous is int lastTick && now - lastTick < LogIntervalTicks)
+            if (LastLogged.TryGetValue(key, out int lastTick) && now - lastTick < LogIntervalTicks)
             {
                 return;
             }
