@@ -10,10 +10,10 @@ namespace ActuallyTextbooks
     /// <summary>
     /// Bridge to the workshop mod "Progression: Education"
     /// (ferny.ProgressionEducation), which replaces free-form lessons with
-    /// scheduled classes held in classrooms. That mod is a listed dependency, but
-    /// every member of it is still reached by name at run time, so all three touch
-    /// points degrade to inert (with one warning in the log) when it is missing or
-    /// changes its internals:
+    /// scheduled classes held in classrooms. That mod is a listed dependency, so
+    /// running without it takes a forced or stale mod list; every PE member is still
+    /// reached by name at run time, so each touch point degrades to inert instead of
+    /// throwing, and each kind of failure warns once:
     /// <list type="bullet">
     /// <item>its class attendance jobs grant skill XP through
     /// <c>SkillRecord.Learn</c>, the same choke point vanilla lessons use, so
@@ -22,7 +22,7 @@ namespace ActuallyTextbooks
     /// at the bottom of the right-hand column;</item>
     /// <item>its proficiency classes train faster: a postfix on the class's
     /// per-tick progress multiplies it by the classroom's textbook bonus for
-    /// the tier's mapped subject (see <see cref="TrainingTierSubjects"/>).</item>
+    /// the tier's paired subject (see <see cref="TrainingTierSubjects"/>).</item>
     /// </list>
     /// </summary>
     public static class ProgressionEducationCompat
@@ -30,6 +30,17 @@ namespace ActuallyTextbooks
         private const string DialogCreateClass = "ProgressionEducation.Dialog_CreateClass";
         private const string DialogEditClass = "ProgressionEducation.Dialog_EditClass";
         private const string ProficiencyLogicClass = "ProgressionEducation.ProficiencyClassLogic";
+
+        // Failure kinds, used as the dedup keys for LogWarningOnce. Keys are short
+        // constants rather than message text so a caller on a per-frame or per-tick
+        // path can ask AlreadyWarned before it builds an expensive message (an
+        // exception's stack trace) only to have it discarded.
+        private const string KeyDialogBridge = "dialog-bridge";
+        private const string KeyTrainingBridge = "training-bridge";
+        private const string KeyTrainingBoost = "training-boost";
+        private const string KeyReadout = "readout";
+        private const string KeyTierLabel = "tier-label";
+        private const string KeyScrollBalance = "scroll-balance";
 
         /// <summary>
         /// Combined height of the three fixed rows that <c>DrawCustomFields</c> draws
@@ -49,14 +60,21 @@ namespace ActuallyTextbooks
 
         /// <summary>
         /// Progression: Education proficiency tier (def name) → the vanilla skill
-        /// whose textbooks speed that tier's training: intellectual books help
-        /// animal riding, shooting books help firearms, social books help speech
-        /// (basic and fluent). Keyed by def name, so a PE rename simply drops the
-        /// mapping and that tier trains at its own speed. Unmapped tiers (low-tech,
-        /// high-tech, driving, piloting) take no bonus by design — these are the
-        /// pairings this mod chose, not a claim the other book subjects fit nowhere.
-        /// Values are skill def names, resolved at use, because the def databases
-        /// are not populated while static fields initialise.
+        /// whose textbooks speed that tier's training: intellectual books help animal
+        /// riding, shooting books help firearms, social books help speech (basic and
+        /// fluent). Keyed by def name, so a PE rename simply drops the pairing and that
+        /// tier trains at PE's own speed.
+        /// <para>
+        /// Left untied on purpose: the weapon track's low-tech and high-tech tiers, the
+        /// vehicle track's automobile driving, aerial piloting and orbital piloting
+        /// tiers, and the speech track's non-speaker tier — which PE never offers as a
+        /// training target anyway. This list is the pairings this mod chose, not a claim
+        /// that books suit no other proficiency. Note that PE only defines the animal
+        /// riding tier when GiddyUp is also installed.
+        /// </para>
+        /// Values are skill def names. Nothing is resolved here: the def databases are
+        /// not populated while static fields initialise, so the first use of a tier goes
+        /// through <see cref="trainingTargets"/>.
         /// </summary>
         private static readonly Dictionary<string, string> TrainingTierSubjects = new Dictionary<string, string>
         {
@@ -65,6 +83,30 @@ namespace ActuallyTextbooks
             { "PE_BasicSpeechTier", "Social" },
             { "PE_FluentSpeechTier", "Social" }
         };
+
+        /// <summary>tier def name → its resolved pairing, including untied tiers as a
+        /// null value, so the per-tick hot path does one dictionary read and nothing
+        /// else. Entries are session-long: skills and labels do not change in play.</summary>
+        private static readonly Dictionary<string, TrainingTarget> trainingTargets = new Dictionary<string, TrainingTarget>();
+
+        /// <summary>PE's own <c>ProficiencyClassLogic.GetLabel</c>, resolved once.</summary>
+        private static MethodInfo tierLabelMethod;
+        private static bool tierLabelMethodChecked;
+
+        /// <summary>Latched on the first failure inside the training postfix. The cause
+        /// is structural (a PE change), so every later tick would fail identically; the
+        /// latch keeps a broken bridge from costing an exception per tick per class.</summary>
+        private static bool trainingBoostDisabled;
+
+        /// <summary>A resolved tier pairing.</summary>
+        private sealed class TrainingTarget
+        {
+            /// <summary>Skill whose textbooks speed this tier; never null.</summary>
+            public SkillDef Skill;
+
+            /// <summary>Tier name as PE displays it, for the readout.</summary>
+            public string Label;
+        }
 
         private static bool? installed;
         private static HashSet<JobDef> classJobDefs;
@@ -140,6 +182,11 @@ namespace ActuallyTextbooks
             {
                 return;
             }
+            // Counted on entry so the success line at the end reports this bridge
+            // alone: a warning from the training bridge must not silence it, and a
+            // warning from here must not silence the training bridge either.
+            int warnedBefore = warned.Count;
+            bool patched = false;
             HarmonyMethod beginScroll = new HarmonyMethod(typeof(ProgressionEducationCompat), nameof(BeginClassColumnScroll));
             HarmonyMethod endScrollFinalizer = new HarmonyMethod(typeof(ProgressionEducationCompat), nameof(EndClassColumnScroll));
             HarmonyMethod flowCapture = new HarmonyMethod(typeof(ProgressionEducationCompat), nameof(CaptureClassRowBottom));
@@ -157,6 +204,8 @@ namespace ActuallyTextbooks
                 MethodInfo requirements = AccessTools.Method(dialogType, "DrawRequirements");
                 if (fields == null && requirements == null)
                 {
+                    LogWarningOnce(KeyDialogBridge + typeName, "class-window readout unavailable on "
+                        + typeName + ": it exposes neither DrawCustomFields nor DrawRequirements.");
                     continue;
                 }
                 try
@@ -164,6 +213,7 @@ namespace ActuallyTextbooks
                     if (fields != null)
                     {
                         harmony.Patch(fields, prefix: beginScroll, finalizer: endScrollFinalizer);
+                        patched = true;
                     }
                     if (requirements != null)
                     {
@@ -176,10 +226,10 @@ namespace ActuallyTextbooks
                     // refactor that renames viewRect/curY throws here. This runs in the
                     // Mod constructor: letting it escape would fail the whole mod load,
                     // so the bridge degrades to the state it has when PE is absent.
-                    LogWarningOnce("skipped class-window bridge for " + typeName + ": " + e);
+                    LogWarningOnce(KeyDialogBridge + typeName, "skipped class-window bridge for " + typeName + ": " + e);
                 }
             }
-            if (warned.Count == 0)
+            if (patched && warned.Count == warnedBefore)
             {
                 Log.Message("[Actually Textbooks] Class window bridge for Progression: Education installed.");
             }
@@ -195,21 +245,30 @@ namespace ActuallyTextbooks
         /// </summary>
         public static void ApplyTrainingPatches(HarmonyLib.Harmony harmony)
         {
-            if (!Installed)
+            // Found through the training system's own type rather than through
+            // Installed, which probes a UI dialog: the two touch points can fail
+            // separately, and a dialog rename must not switch off training.
+            System.Type logicType = AccessTools.TypeByName(ProficiencyLogicClass);
+            if (logicType == null)
             {
+                // PE itself is absent — only reachable on a forced or stale mod list,
+                // since PE is a listed dependency. No warning: nothing is broken here.
                 return;
             }
-            System.Type logicType = AccessTools.TypeByName(ProficiencyLogicClass);
-            MethodInfo progressGetter = logicType == null
-                ? null
-                : AccessTools.PropertyGetter(logicType, "ProgressPerTick");
+            MethodInfo progressGetter = AccessTools.PropertyGetter(logicType, "ProgressPerTick");
             if (progressGetter == null)
             {
-                // A PE rename or merge of the training-rate property costs only the
-                // boost: tiers train at PE's own speed and every class still works,
-                // so this degrades silently rather than warning on every load.
+                // PE is present but the hook moved, which is the likeliest way an update
+                // kills this feature. Tiers then train at PE's own speed and every class
+                // still works, so the loss is benign — but silent loss of a headline
+                // feature leaves the player and any bug report with nothing to go on, and
+                // LogWarningOnce already caps this at one line.
+                LogWarningOnce(KeyTrainingBridge, "proficiency training boost unavailable: "
+                    + ProficiencyLogicClass + ".ProgressPerTick was not found, so textbooks"
+                    + " do not speed up proficiency training.");
                 return;
             }
+            int warnedBefore = warned.Count;
             try
             {
                 harmony.Patch(progressGetter, postfix: new HarmonyMethod(
@@ -220,9 +279,10 @@ namespace ActuallyTextbooks
                 // Runs in the Mod constructor: an escaping exception would fail the
                 // whole mod load, so the bridge degrades to no-boost (see
                 // ApplyDialogPatches for the same reasoning).
-                LogWarningOnce("skipped proficiency training bridge: " + e);
+                LogWarningOnce(KeyTrainingBridge, "skipped proficiency training bridge: " + e);
+                return;
             }
-            if (warned.Count == 0)
+            if (warned.Count == warnedBefore)
             {
                 Log.Message("[Actually Textbooks] Proficiency training bridge for Progression: Education installed.");
             }
@@ -237,7 +297,7 @@ namespace ActuallyTextbooks
         /// </summary>
         private static void BoostProficiencyTraining(object __instance, ref float __result)
         {
-            if (__result <= 0f)
+            if (__result <= 0f || trainingBoostDisabled)
             {
                 return;
             }
@@ -266,9 +326,13 @@ namespace ActuallyTextbooks
             }
             catch (System.Exception e)
             {
-                // This runs every tick of every proficiency class in progress:
-                // report once and never throw into the teacher's job driver.
-                LogWarningOnce("proficiency training boost failed: " + e);
+                // This runs every tick of every proficiency class in progress, and a
+                // throw here means PE's shape changed — so it would throw every tick
+                // forever. Stop trying: the latch keeps the cost at one exception and
+                // one formatted message for the whole session, and the boost was dead
+                // anyway. Never let an exception reach the teacher's job driver.
+                trainingBoostDisabled = true;
+                LogWarningOnce(KeyTrainingBoost, "proficiency training boost disabled after a failure: " + e);
             }
         }
 
@@ -289,8 +353,11 @@ namespace ActuallyTextbooks
         /// content height comes from last frame's measurement, which settles
         /// within a frame since the column only changes when the class does.
         /// <para>
-        /// Never throws: the matching finalizer balances the scroll view only when
-        /// <see cref="columnScrollOpen"/> says this prefix opened one.
+        /// Only the readout measurement is guarded, because it is the only part that
+        /// can realistically throw: it walks PE's private object graph by reflection.
+        /// <see cref="Widgets.BeginScrollView"/> is left outside that guard on purpose,
+        /// so the flag the matching finalizer reads can never disagree with GUI state
+        /// — either the scroll view opened and the flag says so, or it never ran.
         /// </para>
         /// </summary>
         private static void BeginClassColumnScroll(Rect viewRect, object __instance)
@@ -299,6 +366,8 @@ namespace ActuallyTextbooks
             // left behind by an aborted dialog would misplace the next one's readout.
             flowBottomCaptured = false;
             columnScrollOpen = false;
+            pendingReadoutText = null;
+            pendingReadoutHeight = 0f;
             try
             {
                 Text.Font = GameFont.Small;
@@ -306,21 +375,26 @@ namespace ActuallyTextbooks
                 pendingReadoutHeight = pendingReadoutText == null
                     ? 0f
                     : Text.CalcHeight(pendingReadoutText, viewRect.width - 8f) + 8f;
-                float contentHeight = Mathf.Max(viewRect.height, columnContentHeight);
-                float barWidth = contentHeight > viewRect.height + 1f ? 16f : 0f;
-                // The column's rows are drawn at viewRect's own origin, so the
-                // content rect shares it; the scroll view then only clips and offsets.
-                Rect content = new Rect(viewRect.x, viewRect.y, viewRect.width - barWidth, contentHeight);
-                Widgets.BeginScrollView(viewRect, ref columnScroll, content);
-                columnScrollOpen = true;
             }
             catch (System.Exception e)
             {
-                // ReadoutFor walks PE's private object graph by reflection; a PE
-                // change can throw here, but that must cost the readout only, not the
-                // dialog or log once per frame.
-                LogWarningOnce("class-window readout failed: " + e);
+                // Losing the readout must not cost the dialog, and this runs per frame
+                // while a class window is open, so the message (which formats the
+                // exception, stack trace included) is built for the first failure only.
+                pendingReadoutText = null;
+                pendingReadoutHeight = 0f;
+                if (!AlreadyWarned(KeyReadout))
+                {
+                    LogWarningOnce(KeyReadout, "class-window readout failed: " + e);
+                }
             }
+            float contentHeight = Mathf.Max(viewRect.height, columnContentHeight);
+            float barWidth = contentHeight > viewRect.height + 1f ? 16f : 0f;
+            // The column's rows are drawn at viewRect's own origin, so the content
+            // rect shares it; the scroll view then only clips and offsets.
+            Rect content = new Rect(viewRect.x, viewRect.y, viewRect.width - barWidth, contentHeight);
+            Widgets.BeginScrollView(viewRect, ref columnScroll, content);
+            columnScrollOpen = true;
         }
 
         /// <summary>
@@ -334,6 +408,15 @@ namespace ActuallyTextbooks
         /// when the original throws, but the scroll view opened in the prefix must
         /// always be closed or the IMGUI stack stays unbalanced for every window
         /// drawn afterwards.
+        /// </para>
+        /// <para>
+        /// Its <see cref="System.Void"/> return type is load-bearing, so do not change
+        /// it to <c>Exception</c>: Harmony rethrows a pending original exception only
+        /// while every finalizer returns void, whereas a non-void finalizer's return
+        /// value <i>replaces</i> that exception — returning null would swallow PE's own
+        /// drawing error and hide it from the log. Verified in both shipped Harmony
+        /// majors (<c>MethodCreator.AddFinalizers</c> in HarmonyX 2.4.3 for RimWorld
+        /// 1.6, <c>MethodCreator.EmitFinalization</c> in HarmonyLib 3.0 for 1.7).
         /// </para>
         /// </summary>
         private static void EndClassColumnScroll(Rect viewRect, System.Exception __exception)
@@ -365,14 +448,35 @@ namespace ActuallyTextbooks
             }
             finally
             {
-                Widgets.EndScrollView();
+                // Guarded so a failure to close cannot replace an original exception
+                // from inside a finally block: the window stack is then left to log the
+                // real problem, and this mod has still reported its own part of it.
+                try
+                {
+                    Widgets.EndScrollView();
+                }
+                catch (System.Exception e)
+                {
+                    if (!AlreadyWarned(KeyScrollBalance))
+                    {
+                        LogWarningOnce(KeyScrollBalance, "could not close the class-window scroll view: " + e);
+                    }
+                }
             }
         }
 
-        /// <summary>Reports a bridge failure once per distinct message.</summary>
-        private static void LogWarningOnce(string detail)
+        /// <summary>True once this failure kind has been reported, so a caller on a
+        /// per-frame or per-tick path can skip building the message.</summary>
+        private static bool AlreadyWarned(string key) => warned.Contains(key);
+
+        /// <summary>
+        /// Reports one kind of bridge failure, once per session. <paramref name="key"/>
+        /// identifies the kind (see the Key* constants) and <paramref name="detail"/>
+        /// carries the message for that first report.
+        /// </summary>
+        private static void LogWarningOnce(string key, string detail)
         {
-            if (warned.Add(detail))
+            if (warned.Add(key))
             {
                 Log.Warning("[Actually Textbooks] Progression: Education bridge degraded — " + detail);
             }
@@ -380,7 +484,7 @@ namespace ActuallyTextbooks
 
         /// <summary>
         /// Walks dialog → studyGroup → classroom → learning board → room without
-        /// compile-time references, then reuses the desk inspect readout.
+        /// compile-time references, then reuses the shared readout builder.
         /// </summary>
         private static string ReadoutFor(object dialog)
         {
@@ -406,11 +510,12 @@ namespace ActuallyTextbooks
             }
             // Skill classes grant XP through SkillRecord.Learn and proficiency
             // classes raise ProgressPerTick, the two hooks the textbook bonuses ride
-            // on, so both report. Subject classes use the taught skill; a mapped
-            // proficiency tier reports under its own skill with the tier's label
-            // ("firearm training rate +30%") instead of the XP budget line, which
-            // means nothing for tier progress. Other subjects (daycare) take no
-            // bonus at all, so they keep showing no readout.
+            // on, so both report. A skill class names the taught skill and quotes its
+            // lesson figures. A paired proficiency tier instead names the tier itself
+            // ("Firearm training rate +30%") and quotes the rate only: it matches
+            // books by the paired skill, and the daily XP budget means nothing for
+            // tier progress. Untied tiers and other subjects (daycare) take no bonus
+            // at all, so they keep showing no readout.
             object logic = LogicOf(studyGroup);
             SkillDef subject = SkillFocusOf(logic);
             string trainingLabel = null;
@@ -512,25 +617,94 @@ namespace ActuallyTextbooks
 
         /// <summary>
         /// The vanilla skill whose textbooks speed a proficiency tier's training,
-        /// with the tier's own label for the readout; null for every subject that
-        /// is not a mapped tier (skill and daycare classes included — their logic
+        /// with the tier's display name for the readout; null for every subject that
+        /// is not a paired tier (skill and daycare classes included — their logic
         /// has no target tier field at all).
+        /// <para>
+        /// Hot path: per tick per active proficiency class, and per frame while a
+        /// class dialog draws. Everything therefore resolves once per tier into
+        /// <see cref="trainingTargets"/>, untied tiers included, so a repeat call is
+        /// one field read and one dictionary read — no def lookup, no reflection
+        /// beyond the cached field, no label string.
+        /// </para>
         /// </summary>
         private static SkillDef TrainingSubjectOf(object logic, out string trainingLabel)
         {
             trainingLabel = null;
             Def tier = TargetTierOf(logic);
-            if (tier == null || !TrainingTierSubjects.TryGetValue(tier.defName, out string subjectName))
+            if (tier == null)
             {
                 return null;
             }
-            SkillDef subject = DefDatabase<SkillDef>.GetNamedSilentFail(subjectName);
-            if (subject == null)
+            if (!trainingTargets.TryGetValue(tier.defName, out TrainingTarget target))
+            {
+                target = ResolveTrainingTarget(tier);
+                trainingTargets.Add(tier.defName, target);
+            }
+            if (target == null)
             {
                 return null;
             }
-            trainingLabel = tier.label.CapitalizeFirst();
-            return subject;
+            trainingLabel = target.Label;
+            return target.Skill;
+        }
+
+        /// <summary>The one-time work behind <see cref="TrainingSubjectOf"/>; null
+        /// caches an untied tier so it is never looked up again.</summary>
+        private static TrainingTarget ResolveTrainingTarget(Def tier)
+        {
+            if (!TrainingTierSubjects.TryGetValue(tier.defName, out string subjectName))
+            {
+                return null;
+            }
+            SkillDef skill = DefDatabase<SkillDef>.GetNamedSilentFail(subjectName);
+            if (skill == null)
+            {
+                LogWarningOnce(KeyTrainingBridge, "dropped the " + tier.defName + " pairing: no skill named "
+                    + subjectName + ".");
+                return null;
+            }
+            return new TrainingTarget
+            {
+                Skill = skill,
+                Label = TierLabelOf(tier) ?? tier.label?.CapitalizeFirst()
+            };
+        }
+
+        /// <summary>
+        /// The tier's name the way PE shows it. PE's own
+        /// <c>ProficiencyClassLogic.GetLabel</c> prefers the proficiency trait's degree
+        /// label — "firearm proficient" for the firearm tier, where the tier def's own
+        /// label reads just "firearm". The readout is drawn inside PE's dialog, next to
+        /// PE's wording for the same tier, so it calls that method rather than keeping a
+        /// copy of its rule. Falls back to the tier def's label when the method is gone
+        /// or returns nothing.
+        /// </summary>
+        private static string TierLabelOf(Def tier)
+        {
+            try
+            {
+                if (!tierLabelMethodChecked)
+                {
+                    tierLabelMethodChecked = true;
+                    System.Type logicType = AccessTools.TypeByName(ProficiencyLogicClass);
+                    tierLabelMethod = logicType == null ? null : AccessTools.Method(logicType, "GetLabel");
+                }
+                if (tierLabelMethod == null)
+                {
+                    return null;
+                }
+                // PE's GetLabel takes its own ProficiencyTierDef; passing the tier as
+                // the base Def is fine because the instance is that type.
+                string label = tierLabelMethod.Invoke(null, new object[] { tier }) as string;
+                return string.IsNullOrEmpty(label) ? null : label.CapitalizeFirst();
+            }
+            catch (System.Exception e)
+            {
+                LogWarningOnce(KeyTierLabel, "could not read PE's tier label, using the def label instead: "
+                    + e.Message);
+                return null;
+            }
         }
 
         /// <summary>The class's target tier as a plain <see cref="Def"/> (its label

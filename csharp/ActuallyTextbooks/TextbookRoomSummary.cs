@@ -21,9 +21,10 @@ namespace ActuallyTextbooks
         /// <para>
         /// <paramref name="trainingLabel"/> marks a Progression: Education
         /// proficiency class: the bonus lines then report the training-rate
-        /// multiplier under the tier's own label ("Firearm training rate +30%")
-        /// instead of the lesson XP figures, since tier progress has no daily
-        /// budget. Null — the taught-subject phrasing — for skill classes.
+        /// multiplier under the tier's name as PE displays it ("Firearm proficient
+        /// training rate +30%") instead of the lesson XP figures, since tier
+        /// progress has no daily budget. Null — the taught-subject phrasing — for
+        /// skill classes.
         /// </para>
         /// </summary>
         public static string For(Room room, Map map, SkillDef subject, string trainingLabel = null)
@@ -49,7 +50,12 @@ namespace ActuallyTextbooks
                 if (books.BooksPerSubject == null
                     || !books.BooksPerSubject.TryGetValue(subject, out int subjectBooks))
                 {
-                    return "ActTx_Inspect_NoSubjectBooks".Translate(subject.LabelCap);
+                    // The player chose this class by the tier's name, so a training
+                    // class names both: which tier gets nothing, and which skill's
+                    // books the room is missing.
+                    return trainingLabel == null
+                        ? "ActTx_Inspect_NoSubjectBooks".Translate(subject.LabelCap)
+                        : "ActTx_Inspect_TrainingNoSubjectBooks".Translate(subject.LabelCap, trainingLabel);
                 }
                 StringBuilder text = new StringBuilder();
                 text.Append("ActTx_Inspect_Title".Translate(subjectBooks.Named("COUNT")));
@@ -71,7 +77,7 @@ namespace ActuallyTextbooks
                     // Counted but worthless: awful copies still show in the count.
                     text.AppendLine(trainingLabel == null
                         ? "ActTx_Inspect_WorthlessBooks".Translate(subject.LabelCap)
-                        : "ActTx_Inspect_TrainingWorthless".Translate(subject.LabelCap));
+                        : "ActTx_Inspect_TrainingWorthless".Translate(subject.LabelCap, trainingLabel));
                 }
                 return text.ToString().TrimEndNewlines();
             }
@@ -90,8 +96,9 @@ namespace ActuallyTextbooks
             }
             else
             {
-                total.Append(": " + "ActTx_Inspect_TrainingRateTotal".Translate(
-                    "+" + books.Rate.ToStringPercent("0")));
+                // Same wording as the matching-on line: the tier's name and the rate,
+                // in that order, so one setting toggle cannot change how a class reads.
+                total.Append(": " + TrainingText(trainingLabel, books.Rate));
             }
             return total.ToString();
         }
@@ -100,7 +107,13 @@ namespace ActuallyTextbooks
         /// the training rate the classroom's books grant, no XP budget.</summary>
         private static string TrainingLine(string trainingLabel, float rate)
         {
-            return "  " + "ActTx_Inspect_TrainingRate".Translate(trainingLabel, "+" + rate.ToStringPercent("0"));
+            return "  " + TrainingText(trainingLabel, rate);
+        }
+
+        /// <summary>The rate phrase shared by both matching modes.</summary>
+        private static string TrainingText(string trainingLabel, float rate)
+        {
+            return "ActTx_Inspect_TrainingRate".Translate(trainingLabel, "+" + rate.ToStringPercent("0"));
         }
 
         private static string SubjectLine(SkillDef skill, RoomTextbooks.LessonBonus bonus)

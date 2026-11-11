@@ -20,7 +20,7 @@ namespace ActuallyTextbooks
             harmony.PatchAll();
             // LoadAllActiveMods loads every mod assembly (LoadModContent) before
             // CreateModClasses runs any Mod constructor, verified in 1.7, so the
-            // optional bridge resolves the other mod's types right here.
+            // bridge resolves the other mod's types right here.
             ProgressionEducationCompat.ApplyDialogPatches(harmony);
             // The proficiency training-rate boost rides on the same bridge.
             ProgressionEducationCompat.ApplyTrainingPatches(harmony);

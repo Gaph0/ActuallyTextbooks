@@ -19,6 +19,11 @@ namespace ActuallyTextbooks
     {
         private static readonly List<Candidate> Candidates = new List<Candidate>();
 
+        /// <summary>Set once the unpatched-textbook warning has been reported.</summary>
+        private static bool doerWarningReported;
+        private static ThingDef textbookDef;
+        private static bool textbookDefResolved;
+
         private struct Candidate
         {
             public int Quality;
@@ -95,6 +100,39 @@ namespace ActuallyTextbooks
             Candidates.Clear();
         }
 
+        /// <summary>
+        /// Says once — and only for the vanilla textbook — that this mod's patch did
+        /// not land. <c>Patch_TextBook.xml</c> is conditional: when another mod has
+        /// already replaced the vanilla outcome doer it no-ops quietly. That is the
+        /// right behaviour at load, but it leaves every feature of this mod — lesson
+        /// bonuses, class-window readouts, proficiency training — switched off with
+        /// nothing else anywhere in the log. A modded book def that was never ours
+        /// must not trigger the warning, so only the vanilla TextBook matches.
+        /// </summary>
+        private static void ReportUnpatchedTextbook(Book book)
+        {
+            if (doerWarningReported)
+            {
+                return;
+            }
+            if (!textbookDefResolved)
+            {
+                // Resolved here, not in a static initializer: the def databases are
+                // empty while types initialise.
+                textbookDefResolved = true;
+                textbookDef = DefDatabase<ThingDef>.GetNamedSilentFail("TextBook");
+            }
+            if (textbookDef == null || book.def != textbookDef)
+            {
+                return;
+            }
+            doerWarningReported = true;
+            Log.Warning("[Actually Textbooks] this mod's textbook patch is not in effect: the vanilla textbook has no "
+                + "Actually Textbooks outcome doer, so classroom lessons, class readouts and proficiency training get "
+                + "no textbook bonus. Another mod has most likely replaced the textbook's skill-exp doer first, and "
+                + "Patch_TextBook.xml is conditional, so it no-oped instead of reporting a patch failure.");
+        }
+
         private static void TryAddCandidate(Book book, bool matching)
         {
             if (book == null || book.Destroyed || book.IsBurning())
@@ -107,7 +145,14 @@ namespace ActuallyTextbooks
                 return;
             }
             TextbookDoer doer = comp.GetDoer<TextbookDoer>();
-            if (doer == null || !doer.TryGetQuality(out QualityCategory quality))
+            if (doer == null)
+            {
+                // Usually a book def this mod never patched; for the vanilla textbook
+                // it means the whole mod is silently inert (see the report method).
+                ReportUnpatchedTextbook(book);
+                return;
+            }
+            if (!doer.TryGetQuality(out QualityCategory quality))
             {
                 return;
             }
